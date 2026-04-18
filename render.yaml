@@ -1,0 +1,24 @@
+services:
+  - type: worker
+    name: focus-media-production-bot
+    runtime: python
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./bot.db
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: MAX_TOKENS_DIAGNOSIS
+        value: "800"
+      - key: MAX_TOKENS_CONTENT
+        value: "1200"
+      - key: MANAGER_CHAT_ID
+        value: "0"
+      - key: ADMIN_IDS
+        value: "0"
