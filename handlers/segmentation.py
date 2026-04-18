@@ -67,12 +67,14 @@ async def process_goal(message: Message, state: FSMContext):
         await session.execute(update(User).where(User.telegram_id == message.from_user.id).values(main_goal=message.text))
         await session.commit()
     thinking = await message.answer("🔄 <i>Анализирую твою ситуацию... Формирую персональную стратегию...</i>", parse_mode="HTML")
-    diagnosis = await get_ai_diagnosis(
-        segment=SEGMENT_NAMES.get(data.get("segment", "expert")),
-        niche=data.get("niche", ""),
-        current_state=data.get("current_state", ""),
-        main_goal=message.text
-    )
+    diagnosis = await get_ai_diagnosis({
+                "segment": data.get("segment", "expert"),
+            "answers": [
+                            data.get("niche", ""),
+                            data.get("current_state", ""),
+                            message.text
+            ]
+    })
     await thinking.delete()
     await message.answer(f"🎯 <b>Твоя персональная диагностика:</b>\n\n{diagnosis}", parse_mode="HTML")
     await state.set_state(None)
