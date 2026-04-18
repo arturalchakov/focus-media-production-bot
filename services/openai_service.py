@@ -87,17 +87,27 @@ async def get_ai_response(user_message: str, context: list = None) -> str:
                 "Запишитесь на бесплатную стратегическую сессию с нашей командой.")
 
 
-async def transcribe_voice(file_bytes: bytes, filename: str = "voice.ogg") -> str:
+async def transcribe_voice(file_bytes, filename: str = "voice.ogg") -> str:
     """Transcribe voice message using Groq Whisper API."""
+    import io
     try:
-        async with _get_client() as client:
-            transcription = await client.audio.transcriptions.create(
-                file=(filename, file_bytes, "audio/ogg"),
-                model="whisper-large-v3-turbo",
-                language="ru",
-                response_format="text"
-            )
-            return transcription if isinstance(transcription, str) else transcription.text
+        # Ensure we have bytes (handle both bytes and BytesIO)
+        if hasattr(file_bytes, 'read'):
+            data = file_bytes.read()
+        else:
+            data = file_bytes
+
+        logger.info(f"Transcribing voice: {len(data)} bytes, filename={filename}")
+
+        client = _get_client()
+        transcription = await client.audio.transcriptions.create(
+            file=(filename, data),
+            model="whisper-large-v3-turbo",
+            language="ru",
+        )
+        result = transcription if isinstance(transcription, str) else transcription.text
+        logger.info(f"Transcription result: {repr(result)}")
+        return result or ""
     except Exception as e:
-        logger.error(f"Groq Whisper error: {e}")
+        logger.error(f"Groq Whisper error: {type(e).__name__}: {e}")
         return ""
