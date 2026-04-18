@@ -9,7 +9,7 @@ from services.openai_service import get_ai_diagnosis
 
 router = Router()
 
-class SegmentStates(StatesGroup)
+class SegmentStates(StatesGroup):
     waiting_niche = State()
     waiting_current_state = State()
     waiting_goal = State()
