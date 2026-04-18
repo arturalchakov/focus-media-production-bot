@@ -11,31 +11,31 @@ from handlers.admin import router as admin_router
 from database.models import init_db
 
 logging.basicConfig(
-    level=logging.INFO,ef main():
-        bot = Bot(token=BOT_TOKEN)
-            storage = MemoryStorage()
-                dp = Dispatcher(storage=storage)
-
-                    dp.include_router(start_router)
-                        dp.include_router(segment_router)
-                            dp.include_router(ai_router)
-                                dp.include_router(cta_router)
-                                    dp.include_router(admin_router)
-
-                                        await init_db()
-                                            logger.info("Focus Media Production Bot started!")
-
-                                                try:
-                                                        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-                                                            finally:
-                                                                    await bot.session.close()
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
-                                                                    if __name__ == "__main__":
-                                                                        asyncio.run(main())
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        logger = logging.getLogger(__name__)
+async def main():
+    bot = Bot(token=BOT_TOKEN)
+    storage = MemoryStorage()
+    dp = Dispatcher(storage=storage)
+
+    dp.include_router(start_router)
+    dp.include_router(segment_router)
+    dp.include_router(ai_router)
+    dp.include_router(cta_router)
+    dp.include_router(admin_router)
+
+    await init_db()
+    logger.info("Focus Media Production Bot started!")
+
+    try:
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    finally:
+        await bot.session.close()
 
 
-        async d
+if __name__ == "__main__":
+    asyncio.run(main())
