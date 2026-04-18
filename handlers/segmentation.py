@@ -5,7 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import update
 from database.models import AsyncSessionLocal, User
-from services.openai_service import get_diagnosis
+from services.openai_service import get_ai_diagnosis
 
 router = Router()
 
