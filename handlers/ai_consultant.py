@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy import select
 from database.models import AsyncSessionLocal, User, Message as DBMessage
-from services.openai_service import get_ai_response
+from services.openai_service import get_ai_response, transcribe_voice
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -15,7 +15,17 @@ class AIChatStates(StatesGroup):
     ai_chat = State()
 
 
-@router.message(F.text & ~F.text.startswith("/"))
+async def get_text_from_message(message: Message) -> str:
+    """Extract text from message: text or voice transcription."""
+    if message.voice:
+        file = await message.bot.get_file(message.voice.file_id)
+        file_bytes = await message.bot.download_file(file.file_path)
+        text = await transcribe_voice(file_bytes.read(), "voice.ogg")
+        return text
+    return message.text or ""
+
+
+@router.message((F.text & ~F.text.startswith("/")) | F.voice)
 async def ai_chat(message: Message, state: FSMContext):
     # Only respond if user has completed segmentation (has a segment)
     try:
@@ -25,12 +35,17 @@ async def ai_chat(message: Message, state: FSMContext):
             if not user or not user.segment:
                 return  # Not started yet, ignore
 
+        # Get text from message (text or voice)
+        user_text = await get_text_from_message(message)
+        if not user_text:
+            return
+
         # Save message to DB
         async with AsyncSessionLocal() as session:
             db_msg = DBMessage(
                 user_id=message.from_user.id,
                 role="user",
-                content=message.text
+                content=user_text
             )
             session.add(db_msg)
             await session.commit()
@@ -47,27 +62,28 @@ async def ai_chat(message: Message, state: FSMContext):
                 )
                 messages = result.scalars().all()
                 context = [{"role": m.role, "content": m.content} for m in reversed(messages)]
-        except Exception:
-            context = []
+        except Exception as e:
+            logger.error(f"Failed to load context: {e}")
 
-        typing = await message.answer("⌛ <i>Думаю над ответом...</i>", parse_mode="HTML")
-        reply = await get_ai_response(message.text, context)
-        await typing.delete()
-        await message.answer(reply, parse_mode="HTML")
+        # Generate AI response
+        await message.bot.send_chat_action(message.chat.id, "typing")
+        response = await get_ai_response(user_text, context)
 
-        # Save bot reply to DB
+        # Save AI response to DB
         try:
             async with AsyncSessionLocal() as session:
-                db_reply = DBMessage(
+                db_msg = DBMessage(
                     user_id=message.from_user.id,
                     role="assistant",
-                    content=reply
+                    content=response
                 )
-                session.add(db_reply)
+                session.add(db_msg)
                 await session.commit()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to save AI response: {e}")
+
+        await message.answer(response)
 
     except Exception as e:
         logger.error(f"AI chat error: {e}")
-        await message.answer("Произошла ошибка. Попробуйте ещё раз или введите /start")
+        await message.answer("Произошла ошибка. Попробуйте позже.")
