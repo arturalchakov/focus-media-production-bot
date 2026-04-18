@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy import select
 from database.models import AsyncSessionLocal, User, Message as DBMessage
-from services.openai_service import get_consultant_reply
+from services.openai_service import get_ai_response
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -18,45 +18,56 @@ class AIChatStates(StatesGroup):
 @router.message(F.text & ~F.text.startswith("/"))
 async def ai_chat(message: Message, state: FSMContext):
     # Only respond if user has completed segmentation (has a segment)
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
-        user = result.scalar_one_or_none()
-
-        if not user or not user.segment:
-            return
-
-        # Get last 8 messages for context
-        msg_result = await session.execute(
-            select(DBMessage).where(DBMessage.user_id == user.id).order_by(DBMessage.created_at.desc()).limit(8)
-        )
-        history = [{"role": m.role, "content": m.content} for m in reversed(msg_result.scalars().all())]
-
-        user_profile = {
-            "segment": user.segment,
-            "niche": user.niche or "",
-            "main_goal": user.main_goal or ""
-        }
-
-    typing_msg = await message.answer("Думаю... ⏳")
-
     try:
-        reply = await get_consultant_reply(
-            user_message=message.text,
-            chat_history=history,
-            user_profile=user_profile
-        )
-    except Exception as e:
-        logger.error(f"AI reply error: {e}")
-        reply = "Произошла техническая ошибка. Попробуй чуть позже или напиши нам: @FocusMediaProd"
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
+            user = result.scalar_one_or_none()
+            if not user or not user.segment:
+                return  # Not started yet, ignore
 
-    await typing_msg.delete()
-    await message.answer(reply, parse_mode="HTML")
-
-    # Save messages to DB
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(select(User).where(User.telegram_id == message.from_user.id))
-        user = result.scalar_one_or_none()
-        if user:
-            session.add(DBMessage(user_id=user.id, role="user", content=message.text))
-            session.add(DBMessage(user_id=user.id, role="assistant", content=reply))
+        # Save message to DB
+        async with AsyncSessionLocal() as session:
+            db_msg = DBMessage(
+                user_id=message.from_user.id,
+                role="user",
+                content=message.text
+            )
+            session.add(db_msg)
             await session.commit()
+
+        # Get recent context (last 6 messages)
+        context = []
+        try:
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(
+                    select(DBMessage)
+                    .where(DBMessage.user_id == message.from_user.id)
+                    .order_by(DBMessage.id.desc())
+                    .limit(6)
+                )
+                messages = result.scalars().all()
+                context = [{"role": m.role, "content": m.content} for m in reversed(messages)]
+        except Exception:
+            context = []
+
+        typing = await message.answer("⌛ <i>Думаю над ответом...</i>", parse_mode="HTML")
+        reply = await get_ai_response(message.text, context)
+        await typing.delete()
+        await message.answer(reply, parse_mode="HTML")
+
+        # Save bot reply to DB
+        try:
+            async with AsyncSessionLocal() as session:
+                db_reply = DBMessage(
+                    user_id=message.from_user.id,
+                    role="assistant",
+                    content=reply
+                )
+                session.add(db_reply)
+                await session.commit()
+        except Exception:
+            pass
+
+    except Exception as e:
+        logger.error(f"AI chat error: {e}")
+        await message.answer("Произошла ошибка. Попробуйте ещё раз или введите /start")
