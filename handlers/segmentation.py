@@ -9,7 +9,7 @@ from services.openai_service import get_ai_diagnosis
 
 router = Router()
 
-class SegmentStates(StatesGroup):
+class SegmentStates(StatesGroup)
     waiting_niche = State()
     waiting_current_state = State()
     waiting_goal = State()
@@ -67,7 +67,7 @@ async def process_goal(message: Message, state: FSMContext):
         await session.execute(update(User).where(User.telegram_id == message.from_user.id).values(main_goal=message.text))
         await session.commit()
     thinking = await message.answer("🔄 <i>Анализирую твою ситуацию... Формирую персональную стратегию...</i>", parse_mode="HTML")
-    diagnosis = await get_diagnosis(
+    diagnosis = await get_ai_diagnosis(
         segment=SEGMENT_NAMES.get(data.get("segment", "expert")),
         niche=data.get("niche", ""),
         current_state=data.get("current_state", ""),
