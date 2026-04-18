@@ -54,7 +54,7 @@ async def get_ai_diagnosis(user_data: dict) -> str:
                 max_tokens=config.MAX_TOKENS_DIAGNOSIS,
                 temperature=0.7
             )
-        return response.choices[0].message.content
+            return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Groq API error in diagnosis: {e}")
         return ("На основе ваших ответов я вижу потенциал для роста. "
@@ -80,8 +80,24 @@ async def get_ai_response(user_message: str, context: list = None) -> str:
                 max_tokens=config.MAX_TOKENS_CONTENT,
                 temperature=0.7
             )
-        return response.choices[0].message.content
+            return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Groq API error in chat: {e}")
         return ("Отличный вопрос! Для детального ответа лучше поговорить лично. "
                 "Запишитесь на бесплатную стратегическую сессию с нашей командой.")
+
+
+async def transcribe_voice(file_bytes: bytes, filename: str = "voice.ogg") -> str:
+    """Transcribe voice message using Groq Whisper API."""
+    try:
+        async with _get_client() as client:
+            transcription = await client.audio.transcriptions.create(
+                file=(filename, file_bytes, "audio/ogg"),
+                model="whisper-large-v3-turbo",
+                language="ru",
+                response_format="text"
+            )
+            return transcription if isinstance(transcription, str) else transcription.text
+    except Exception as e:
+        logger.error(f"Groq Whisper error: {e}")
+        return ""
