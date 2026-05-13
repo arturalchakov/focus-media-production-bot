@@ -99,11 +99,19 @@ async def process_goal(message: Message, state: FSMContext):
         ]
     })
     await thinking.delete()
-    await message.answer(f"🎯 <b>Твоя персональная диагностика:</b>\n\n{diagnosis}", parse_mode="HTML")
+    # Diagnosis + main CTA button attached directly
+    primary = InlineKeyboardBuilder()
+    primary.button(text="📞 Записаться на стратсессию — бесплатно", callback_data="cta_book")
+    primary.adjust(1)
+    await message.answer(
+        f"🎯 <b>Твоя персональная диагностика:</b>\n\n{diagnosis}",
+        parse_mode="HTML",
+        reply_markup=primary.as_markup(),
+    )
     await state.set_state(None)
+    # Secondary menu
     builder = InlineKeyboardBuilder()
-    builder.button(text="📞 Записаться на стратегическую сессию", callback_data="cta_book")
-    builder.button(text="📚 Получить бесплатный материал", callback_data="cta_magnet")
+    builder.button(text="📚 Скачать PDF-разбор по твоей нише", callback_data="cta_magnet")
     builder.button(text="💬 Задать вопрос AI-консультанту", callback_data="cta_ask")
     builder.adjust(1)
-    await message.answer("\n🚀 <b>Что хочешь сделать дальше?</b>", reply_markup=builder.as_markup(), parse_mode="HTML")
+    await message.answer("Или возьми материалы и подумай:", reply_markup=builder.as_markup(), parse_mode="HTML")

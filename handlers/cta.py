@@ -118,15 +118,38 @@ async def process_lead_contact(message: Message, state: FSMContext):
     
     await state.clear()
 
+MAGNET_PDFS = {
+    "expert":   ("files/expert.pdf",   "FMP — 5-шаговая формула запуска продукта.pdf"),
+    "blogger":  ("files/blogger.pdf",  "FMP — Матрица монетизации блогера.pdf"),
+    "business": ("files/business.pdf", "FMP — Чек-лист аудита digital-присутствия.pdf"),
+}
+
+MAGNET_CAPTIONS = {
+    "expert":   "📋 <b>5-шаговая формула запуска первого продукта</b>\n\nПошаговый разбор для экспертов и коучей. Сохрани файл — он останется у тебя.\n\n👇 Хочешь разобрать ситуацию вживую?",
+    "blogger":  "📱 <b>Матрица монетизации блогера</b>\n\n3 уровня монетизации в зависимости от размера аудитории. Без рекламных подачек.\n\n👇 Хочешь систему монетизации под себя?",
+    "business": "📊 <b>Чек-лист аудита digital-присутствия</b>\n\nПройди его за вечер — больше 5 «нет» означают минимум 30% упущенной выручки.\n\n👇 Готов разобрать аудит вживую?",
+}
+
 @router.callback_query(F.data == "cta_magnet")
 async def cta_magnet(callback: CallbackQuery, state: FSMContext):
+    from aiogram.types import FSInputFile
+    import os
     data = await state.get_data()
     segment = data.get("segment", "expert")
-    magnet = LEAD_MAGNETS.get(segment, LEAD_MAGNETS["expert"])
+    path, fname = MAGNET_PDFS.get(segment, MAGNET_PDFS["expert"])
     builder = InlineKeyboardBuilder()
     builder.button(text="📞 Записаться на стратегическую сессию", callback_data="cta_book")
     builder.adjust(1)
-    await callback.message.answer(magnet, reply_markup=builder.as_markup(), parse_mode="HTML")
+    if os.path.exists(path):
+        await callback.message.answer_document(
+            FSInputFile(path, filename=fname),
+            caption=MAGNET_CAPTIONS.get(segment, MAGNET_CAPTIONS["expert"]),
+            parse_mode="HTML",
+            reply_markup=builder.as_markup(),
+        )
+    else:
+        magnet = LEAD_MAGNETS.get(segment, LEAD_MAGNETS["expert"])
+        await callback.message.answer(magnet, reply_markup=builder.as_markup(), parse_mode="HTML")
     await callback.answer()
 
 @router.callback_query(F.data == "cta_ask")
