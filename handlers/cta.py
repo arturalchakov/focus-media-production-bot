@@ -7,6 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select, update
 from database.models import AsyncSessionLocal, User
 from config import MANAGER_CHAT_ID
+from services.followup import cancel_followups
 
 router = Router()
 
@@ -115,7 +116,9 @@ async def process_lead_contact(message: Message, state: FSMContext):
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Failed to notify manager {MANAGER_CHAT_ID}: {type(e).__name__}: {e}")
-    
+
+    # User became a lead — stop the follow-up sequence
+    await cancel_followups(message.from_user.id)
     await state.clear()
 
 MAGNET_PDFS = {

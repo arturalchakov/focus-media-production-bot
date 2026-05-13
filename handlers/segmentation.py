@@ -6,6 +6,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import update
 from database.models import AsyncSessionLocal, User
 from services.openai_service import get_ai_diagnosis, transcribe_voice
+from services.followup import schedule_followups
 
 router = Router()
 
@@ -115,3 +116,5 @@ async def process_goal(message: Message, state: FSMContext):
     builder.button(text="💬 Задать вопрос AI-консультанту", callback_data="cta_ask")
     builder.adjust(1)
     await message.answer("Или возьми материалы и подумай:", reply_markup=builder.as_markup(), parse_mode="HTML")
+    # Arm follow-up sequence (cancelled if user becomes a lead)
+    await schedule_followups(message.from_user.id)

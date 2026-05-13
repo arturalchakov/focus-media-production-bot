@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from database.models import AsyncSessionLocal, User
 
 router = Router()
@@ -41,19 +41,13 @@ async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
     
     async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == message.from_user.id)
-        )
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            user = User(
-                telegram_id=message.from_user.id,
-                username=message.from_user.username,
-                first_name=message.from_user.first_name,
-            )
-            session.add(user)
-            await session.commit()
+        stmt = sqlite_insert(User).values(
+            telegram_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+        ).on_conflict_do_nothing(index_elements=["telegram_id"])
+        await session.execute(stmt)
+        await session.commit()
     
     await message.answer(
         WELCOME_TEXT,

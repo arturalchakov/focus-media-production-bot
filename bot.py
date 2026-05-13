@@ -9,6 +9,7 @@ from handlers.ai_consultant import router as ai_router
 from handlers.cta import router as cta_router
 from handlers.admin import router as admin_router
 from database.models import init_db
+from services.followup import followup_loop
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +31,9 @@ async def main():
 
     await init_db()
     logger.info("Focus Media Production Bot started!")
+
+    # Background: poll DB and send due follow-ups
+    asyncio.create_task(followup_loop(bot))
 
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
