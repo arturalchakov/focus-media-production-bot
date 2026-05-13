@@ -24,8 +24,8 @@ async def main():
 
     dp.include_router(start_router)
     dp.include_router(segment_router)
-    dp.include_router(ai_router)
     dp.include_router(cta_router)
+    dp.include_router(ai_router)
     dp.include_router(admin_router)
 
     await init_db()

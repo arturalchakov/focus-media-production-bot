@@ -112,8 +112,9 @@ async def process_lead_contact(message: Message, state: FSMContext):
                 f"🔥 <b>Новый лид!</b>\n\n👤 {message.from_user.full_name} (@{message.from_user.username})\n📞 Контакт: {message.text}\n🏷 Сегмент: {segment}\n💼 Ниша: {niche}\n🕐 {datetime.now().strftime('%d.%m.%Y %H:%M')}",
                 parse_mode="HTML"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to notify manager {MANAGER_CHAT_ID}: {type(e).__name__}: {e}")
     
     await state.clear()
 
