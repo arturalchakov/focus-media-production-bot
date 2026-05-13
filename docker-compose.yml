@@ -1,0 +1,8 @@
+services:
+  bot:
+    build: .
+    container_name: focus-media-production-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./bot.db:/app/bot.db
